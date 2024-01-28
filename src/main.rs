@@ -11,7 +11,7 @@ use typst_syntax::{
     LinkedNode, Tag,
 };
 
-const ZWS: char = '\u{200B}';
+const ZWJ: char = '\u{200D}';
 
 #[derive(clap::Parser)]
 struct Args {
@@ -134,7 +134,7 @@ fn highlight_raw<W: WriteColor>(
     out.set_color(&color)?;
     text.chars().take_while(|&c| c == '`').try_for_each(|c| {
         if ctx.args.discord {
-            write!(out, "{ZWS}")?;
+            write!(out, "{ZWJ}")?;
         }
         write!(out, "{c}")
     })?;
@@ -170,7 +170,7 @@ fn highlight_raw<W: WriteColor>(
         .take_while(|&c| c == '`')
         .try_for_each(|c| {
             if ctx.args.discord {
-                write!(out, "{ZWS}")?;
+                write!(out, "{ZWJ}")?;
             }
             write!(out, "{c}")
         })?;
