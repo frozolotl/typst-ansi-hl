@@ -11,7 +11,7 @@ use typst_syntax::{
     LinkedNode, Tag,
 };
 
-const ZWJ: char = '\u{200D}';
+const ZERO_WIDTH_JOINER: char = '\u{200D}';
 
 #[derive(clap::Parser)]
 struct Args {
@@ -130,14 +130,21 @@ fn highlight_raw<W: WriteColor>(
 
     let text = raw.to_untyped().text();
 
-    // Write starting fences, escaped if discord.
-    out.set_color(&color)?;
-    text.chars().take_while(|&c| c == '`').try_for_each(|c| {
+    // Collect backticks and escape if discord is enabled.
+    let fence: String = {
+        let backticks = text.chars().take_while(|&c| c == '`');
         if ctx.args.discord {
-            write!(out, "{ZWJ}")?;
+            let mut fence: String = backticks.flat_map(|c| [c, ZERO_WIDTH_JOINER]).collect();
+            fence.pop();
+            fence
+        } else {
+            backticks.collect()
         }
-        write!(out, "{c}")
-    })?;
+    };
+
+    // Write opening fence.
+    out.set_color(&color)?;
+    write!(out, "{fence}")?;
 
     let lang = raw.lang().unwrap_or("");
     write!(out, "{}", lang)?;
@@ -164,16 +171,8 @@ fn highlight_raw<W: WriteColor>(
     out.current_color = ColorSpec::default();
     out.set_color(&color)?;
 
-    // Write closing fences, escaped if discord.
-    text.chars()
-        .rev()
-        .take_while(|&c| c == '`')
-        .try_for_each(|c| {
-            if ctx.args.discord {
-                write!(out, "{ZWJ}")?;
-            }
-            write!(out, "{c}")
-        })?;
+    // Write closing fence.
+    write!(out, "{fence}")?;
 
     Ok(())
 }
