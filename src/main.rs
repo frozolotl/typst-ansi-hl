@@ -70,7 +70,7 @@ fn main() -> Result<()> {
 
 fn highlight<W: WriteColor>(
     ctx: &Context,
-    out: &mut W,
+    out: &mut DeferredWriter<W>,
     color: &mut ColorSpec,
     node: &LinkedNode,
 ) -> Result<()> {
@@ -85,7 +85,7 @@ fn highlight<W: WriteColor>(
             Tag::Strong => color.set_fg(Some(Color::Yellow)).set_bold(true),
             Tag::Emph => color.set_fg(Some(Color::Yellow)).set_italic(true),
             Tag::Link => color.set_fg(Some(Color::Blue)).set_underline(true),
-            Tag::Raw => color.set_fg(Some(Color::White)),
+            Tag::Raw => color, // This is handled within [`highlight_raw`].
             Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(true),
             Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(true),
             Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(true),
@@ -98,7 +98,7 @@ fn highlight<W: WriteColor>(
             Tag::Number => color.set_fg(Some(Color::Yellow)),
             Tag::String => color.set_fg(Some(Color::Green)),
             Tag::Function => color.set_fg(Some(Color::Blue)).set_italic(true),
-            Tag::Interpolated => color.set_fg(None),
+            Tag::Interpolated => color.set_fg(Some(Color::White)),
             Tag::Error => color.set_fg(Some(Color::Red)),
         };
         out.set_color(color)?;
@@ -120,9 +120,18 @@ fn highlight<W: WriteColor>(
     Ok(())
 }
 
-fn highlight_raw<W: WriteColor>(ctx: &Context, out: &mut W, raw: Raw<'_>) -> Result<()> {
+fn highlight_raw<W: WriteColor>(
+    ctx: &Context,
+    out: &mut DeferredWriter<W>,
+    raw: Raw<'_>,
+) -> Result<()> {
+    let mut color = ColorSpec::new();
+    color.set_fg(Some(Color::White));
+
     let text = raw.to_untyped().text();
+
     // Write starting fences, escaped if discord.
+    out.set_color(&color)?;
     text.chars().take_while(|&c| c == '`').try_for_each(|c| {
         if ctx.args.discord {
             write!(out, "{ZWS}")?;
@@ -149,6 +158,11 @@ fn highlight_raw<W: WriteColor>(ctx: &Context, out: &mut W, raw: Raw<'_>) -> Res
     } else {
         write!(out, "{inner}")?;
     }
+
+    // HACK: Reset the color the writer thinks it has.
+    // Necessary because [`bat::PrettyPrinter`] does not use [`out`].
+    out.current_color = ColorSpec::default();
+    out.set_color(&color)?;
 
     // Write closing fences, escaped if discord.
     text.chars()
