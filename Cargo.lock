@@ -907,6 +907,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "typst-ansi-hl"
+version = "0.1.0"
+dependencies = [
+ "bat",
+ "clap",
+ "color-eyre",
+ "termcolor",
+ "typst-syntax",
+]
+
+[[package]]
 name = "typst-syntax"
 version = "0.10.0"
 source = "git+https://github.com/typst/typst?tag=v0.10.0#70ca0d257bb4ba927f63260e20443f244e0bb58c"
@@ -921,17 +932,6 @@ dependencies = [
  "unicode-script",
  "unicode-segmentation",
  "unscanny",
-]
-
-[[package]]
-name = "typst2ansi"
-version = "0.1.0"
-dependencies = [
- "bat",
- "clap",
- "color-eyre",
- "termcolor",
- "typst-syntax",
 ]
 
 [[package]]

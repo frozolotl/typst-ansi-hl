@@ -1,5 +1,5 @@
 [package]
-name = "typst2ansi"
+name = "typst-ansi-hl"
 version = "0.1.0"
 edition = "2021"
 authors = ["frozolotl <frozolotl@protonmail.com>"]

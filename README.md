@@ -1,5 +1,5 @@
-# typst2ansi
-typst2ansi highlights your Typst code.
+# typst-ansi-hl
+typst-ansi-hl highlights your Typst code using ANSI escape sequences.
 
 It is especially intended to be used to provide the otherwise missing Typst syntax highlighting in Discord.
 
@@ -9,11 +9,11 @@ cargo install --path .
 ```
 
 ## Usage
-Simply run `typst2ansi main.typ` or pipe the source code into `typst2ansi`.
-You could use `typst2ansi -d main.typ | xclip -selection clipboard` to copy Discord-compatible output to your clipboard.
+Simply run `typst-ansi-hl main.typ` or pipe the source code into `typst-ansi-hl`.
+You could use `typst-ansi-hl -d main.typ | xclip -selection clipboard` to copy Discord-compatible output to your clipboard.
 
 ```
-Usage: typst2ansi [OPTIONS] [INPUT]
+Usage: typst-ansi-hl [OPTIONS] [INPUT]
 
 Arguments:
   [INPUT]  The input path. If unset, stdin is used
