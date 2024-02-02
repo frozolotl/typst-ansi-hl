@@ -61,7 +61,6 @@ fn main() -> Result<()> {
     .wrap_err("failed to highlight input")?;
 
     if ctx.args.discord {
-        writeln!(out)?;
         writeln!(out, "```")?;
     }
 
