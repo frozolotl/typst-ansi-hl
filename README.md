@@ -23,5 +23,15 @@ Options:
   -h, --help     Print help
 ```
 
+### Clipboard-based Workflow
+You can bind one of the following commands to a certain key bind for improved ease-of-use:
+```sh
+# Linux X11 (Bash/Zsh/Fish/Nushell)
+xclip -selection clipboard -out | typst-ansi-hl --discord | xclip -selection clipboard -in
+
+# Windows (PowerShell)
+Get-Clipboard | typst-ansi-hl --discord | Set-Clipboard
+```
+
 ## Legal
 This software is not affiliated with Typst, the brand.
