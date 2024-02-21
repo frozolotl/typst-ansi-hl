@@ -29,6 +29,9 @@ You can bind one of the following commands to a certain key bind for improved ea
 # Linux X11 (Bash/Zsh/Fish/Nushell)
 xclip -selection clipboard -out | typst-ansi-hl --discord | xclip -selection clipboard -in
 
+# Linux Wayland (Bash/Zsh/Fish/Nushell)
+wl-paste | typst-ansi-hl --discord | wl-copy
+
 # Windows (PowerShell)
 Get-Clipboard | typst-ansi-hl --discord | Set-Clipboard
 ```
