@@ -153,7 +153,7 @@ fn highlight_raw<W: WriteColor>(
 /// A writer that only sets the color when content is written.
 /// This is intended to lessen the size impact of unnecessary escape codes.
 pub struct DeferredWriter<W> {
-    inner: W,
+    pub inner: W,
     current_color: ColorSpec,
     next_color: Option<ColorSpec>,
 }
@@ -167,6 +167,11 @@ impl<W> DeferredWriter<W> {
             current_color: ColorSpec::new(),
             next_color: None,
         }
+    }
+
+    /// Extracts the inner writer from this DeferredWriter.
+    pub fn into_inner(self) -> W {
+        self.inner
     }
 }
 
