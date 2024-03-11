@@ -7,7 +7,10 @@ authors = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bat = { workspace = true }
+ansi_colours = { workspace = true }
+once_cell = { workspace = true }
+syntect = { workspace = true }
 termcolor = { workspace = true }
 thiserror = { workspace = true }
+two-face = { workspace = true }
 typst-syntax = { workspace = true }

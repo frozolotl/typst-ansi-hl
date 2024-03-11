@@ -1,11 +1,17 @@
+use once_cell::sync::Lazy;
 use std::io::Write;
+use syntect::easy::HighlightLines;
+use syntect::highlighting::FontStyle;
+use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
 use termcolor::{Color, ColorSpec, WriteColor};
+use two_face::theme::{EmbeddedLazyThemeSet, EmbeddedThemeName};
 use typst_syntax::ast::AstNode;
 use typst_syntax::{ast, LinkedNode, Tag};
 
 /// Module with external dependencies exposed by this library.
 pub mod ext {
-    pub use bat;
+    pub use syntect;
     pub use termcolor;
     pub use typst_syntax;
 }
@@ -29,7 +35,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     #[error(transparent)]
-    Bat(#[from] bat::error::Error),
+    Syntect(#[from] syntect::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -130,24 +136,75 @@ fn highlight_raw<W: WriteColor>(
     inner = &inner[lang.len()..];
 
     if raw.lang().is_some() {
-        bat::PrettyPrinter::new()
-            .input_from_bytes(inner.as_bytes())
-            .language(lang)
-            .theme("ansi")
-            .print()?;
+        highlight_lang(inner, lang, out)?;
     } else {
         write!(out, "{inner}")?;
     }
 
-    // HACK: Reset the color the writer thinks it has.
-    // Necessary because [`bat::PrettyPrinter`] does not use [`out`].
-    out.current_color = ColorSpec::default();
     out.set_color(&color)?;
 
     // Write closing fence.
     write!(out, "{fence}")?;
 
     Ok(())
+}
+
+static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(two_face::syntax::extra_newlines);
+static THEME_SET: Lazy<EmbeddedLazyThemeSet> = Lazy::new(two_face::theme::extra);
+
+fn highlight_lang<W: WriteColor>(
+    input: &str,
+    lang: &str,
+    out: &mut DeferredWriter<W>,
+) -> Result<()> {
+    let Some(syntax) = SYNTAX_SET.find_syntax_by_token(lang) else {
+        write!(out, "{input}")?;
+        return Ok(());
+    };
+    let ansi_theme = THEME_SET.get(EmbeddedThemeName::Base16);
+
+    let mut highlighter = HighlightLines::new(syntax, ansi_theme);
+    for line in LinesWithEndings::from(input) {
+        let ranges = highlighter.highlight_line(line, &SYNTAX_SET)?;
+        for (styles, text) in ranges {
+            let fg = styles.foreground;
+            let fg = convert_rgb_to_ansi_color(fg.r, fg.g, fg.b, fg.a);
+            let mut color = ColorSpec::new();
+            color.set_fg(fg);
+
+            let font_style = styles.font_style;
+            color.set_bold(font_style.contains(FontStyle::BOLD));
+            color.set_italic(font_style.contains(FontStyle::ITALIC));
+            color.set_underline(font_style.contains(FontStyle::UNDERLINE));
+
+            out.set_color(&color)?;
+            write!(out, "{text}")?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Converts an RGB color from the theme to a [`Color`].
+///
+/// Inspired by an equivalent function in `bat`.
+fn convert_rgb_to_ansi_color(r: u8, g: u8, b: u8, a: u8) -> Option<Color> {
+    match a {
+        0 => Some(match r {
+            // Use predefined colors for wider support.
+            0x00 => Color::Black,
+            0x01 => Color::Red,
+            0x02 => Color::Green,
+            0x03 => Color::Yellow,
+            0x04 => Color::Blue,
+            0x05 => Color::Magenta,
+            0x06 => Color::Cyan,
+            0x07 => Color::White,
+            _ => Color::Ansi256(r),
+        }),
+        1 => None,
+        _ => Some(Color::Ansi256(ansi_colours::ansi256_from_rgb((r, g, b)))),
+    }
 }
 
 /// A writer that only sets the color when content is written.
