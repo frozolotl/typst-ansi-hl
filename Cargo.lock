@@ -910,20 +910,20 @@ dependencies = [
 name = "typst-ansi-hl"
 version = "0.1.0"
 dependencies = [
- "clap",
- "color-eyre",
+ "bat",
  "termcolor",
- "typst-ansi-hl-lib",
+ "thiserror",
  "typst-syntax",
 ]
 
 [[package]]
-name = "typst-ansi-hl-lib"
+name = "typst-ansi-hl-cli"
 version = "0.1.0"
 dependencies = [
- "bat",
+ "clap",
+ "color-eyre",
  "termcolor",
- "thiserror",
+ "typst-ansi-hl",
  "typst-syntax",
 ]
 

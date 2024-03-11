@@ -1,5 +1,5 @@
 [package]
-name = "typst-ansi-hl-lib"
+name = "typst-ansi-hl"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }

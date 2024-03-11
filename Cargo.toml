@@ -7,14 +7,19 @@ edition = "2021"
 authors = ["frozolotl <frozolotl@protonmail.com>"]
 
 [package]
-name = "typst-ansi-hl"
+name = "typst-ansi-hl-cli"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }
 
+[[bin]]
+name = "typst-ansi-hl"
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
+typst-ansi-hl = { path = "lib" }
 bat = { version = "0.24.0", default-features = false, features = ["regex-fancy"] }
 clap = { version = "4.4.18", features = ["derive"] }
 color-eyre = "0.6.2"
@@ -23,8 +28,8 @@ thiserror = "1.0.57"
 typst-syntax = { git = "https://github.com/typst/typst", tag = "v0.10.0" }
 
 [dependencies]
+typst-ansi-hl = { workspace = true }
 clap = { workspace = true }
 color-eyre = { workspace = true }
 termcolor = { workspace = true }
 typst-syntax = { workspace = true }
-typst-ansi-hl-lib = { path = "lib" }

@@ -6,7 +6,7 @@ use std::{
 use clap::Parser;
 use color_eyre::eyre::{Context as _, Result};
 use termcolor::ColorSpec;
-use typst_ansi_hl_lib::{highlight, DeferredWriter, Options};
+use typst_ansi_hl::{highlight, DeferredWriter, Options};
 
 #[derive(clap::Parser)]
 struct Args {
