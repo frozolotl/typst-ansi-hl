@@ -127,7 +127,7 @@ fn highlight_raw<W: WriteColor>(
     let mut color = ColorSpec::new();
     color.set_fg(Some(Color::White));
 
-    let text = raw.to_untyped().text();
+    let text = raw.to_untyped().clone().into_text();
 
     // Collect backticks and escape if discord is enabled.
     let fence: String = {
@@ -145,7 +145,10 @@ fn highlight_raw<W: WriteColor>(
     out.set_color(&color)?;
     write!(out, "{fence}")?;
 
-    let lang = raw.lang().unwrap_or("");
+    let lang = raw
+        .lang()
+        .map(|lang| lang.get().to_string())
+        .unwrap_or_default();
     write!(out, "{}", lang)?;
 
     // Trim starting fences.
@@ -158,7 +161,7 @@ fn highlight_raw<W: WriteColor>(
     if raw.lang().is_some() {
         bat::PrettyPrinter::new()
             .input_from_bytes(inner.as_bytes())
-            .language(lang)
+            .language(&lang)
             .theme("ansi")
             .print()?;
     } else {
