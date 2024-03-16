@@ -1,0 +1,16 @@
+[package]
+name = "typst-ansi-hl"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ansi_colours = { workspace = true }
+once_cell = { workspace = true }
+syntect = { workspace = true }
+termcolor = { workspace = true }
+thiserror = { workspace = true }
+two-face = { workspace = true }
+typst-syntax = { workspace = true }
