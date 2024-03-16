@@ -188,7 +188,8 @@ fn highlight_lang<W: WriteColor>(
 
 /// Converts an RGB color from the theme to a [`Color`].
 ///
-/// Inspired by an equivalent function in `bat`.
+/// Inspired by an equivalent function in `bat`[^1].
+/// [^1]: https://github.com/sharkdp/bat/blob/07c26adc357f70a48f2b412008d5c37d43e084c5/src/terminal.rs#L6
 fn convert_rgb_to_ansi_color(r: u8, g: u8, b: u8, a: u8) -> Option<Color> {
     match a {
         0 => Some(match r {
