@@ -185,6 +185,14 @@ impl Highlighter {
         internal(self, node, &mut out, &mut ColorSpec::new())?;
 
         if self.discord {
+            // Make sure that the closing fences are on their own line.
+            let mut last_leaf = node.clone();
+            while let Some(child) = last_leaf.children().last() {
+                last_leaf = child;
+            }
+            if !last_leaf.text().ends_with('\n') {
+                writeln!(out)?;
+            }
             writeln!(out, "```")?;
         }
 
@@ -228,7 +236,7 @@ impl Highlighter {
 
         if let Some(lang) = raw.lang() {
             let lang = lang.get();
-            inner = &inner[lang.len()..]; // Trim language.
+            inner = &inner[lang.len()..]; // Trim language tag.
             highlight_lang(inner, lang, out)?;
         } else {
             write!(out, "{inner}")?;
