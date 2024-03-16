@@ -1,13 +1,15 @@
+use std::{fmt, io::Write, str::FromStr};
+
 use once_cell::sync::Lazy;
-use std::io::Write;
-use syntect::easy::HighlightLines;
-use syntect::highlighting::FontStyle;
-use syntect::parsing::SyntaxSet;
-use syntect::util::LinesWithEndings;
+use syntect::{
+    easy::HighlightLines, highlighting::FontStyle, parsing::SyntaxSet, util::LinesWithEndings,
+};
 use termcolor::{Color, ColorSpec, WriteColor};
 use two_face::theme::{EmbeddedLazyThemeSet, EmbeddedThemeName};
-use typst_syntax::ast::AstNode;
-use typst_syntax::{ast, LinkedNode, Tag};
+use typst_syntax::{
+    ast::{self, AstNode},
+    LinkedNode, Tag,
+};
 
 /// Module with external dependencies exposed by this library.
 pub mod ext {
@@ -18,136 +20,227 @@ pub mod ext {
 
 const ZERO_WIDTH_JOINER: char = '\u{200D}';
 
-/// Highlight options.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct Options {
-    /// Whether the output will be used in Discord.
-    /// This results in backtick escaping and other conveniences.
-    /// One will still have to manually add the \`\`\`ansi \`\`\` fences around
-    /// the output.
-    pub discord: bool,
-}
-
 /// Any error returned by this library.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("syntax mode is not one of `code`, `markup`, `math`")]
+    UnknownMode,
     #[error(transparent)]
     Io(#[from] std::io::Error),
-
     #[error(transparent)]
     Syntect(#[from] syntect::Error),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-/// Highlight a Typst linked node.
-///
-/// Use [`typst_syntax::parse`] to parse a string into a [`SyntaxNode`], and then
-/// use [`LinkedNode::new`] on the parsed syntax node to obtain a [`LinkedNode`]
-/// you can use with this function.
-///
-/// [`SyntaxNode`]: typst_syntax::SyntaxNode
-pub fn highlight<W: WriteColor>(
-    options: &Options,
-    out: &mut DeferredWriter<W>,
-    color: &mut ColorSpec,
-    node: &LinkedNode,
-) -> Result<()> {
-    let prev_color = color.clone();
-
-    if let Some(tag) = typst_syntax::highlight(node) {
-        *color = ColorSpec::default();
-        match tag {
-            Tag::Comment => color.set_fg(Some(Color::Black)).set_dimmed(true),
-            Tag::Punctuation => color.set_fg(None),
-            Tag::Escape => color.set_fg(Some(Color::Cyan)),
-            Tag::Strong => color.set_fg(Some(Color::Yellow)).set_bold(true),
-            Tag::Emph => color.set_fg(Some(Color::Yellow)).set_italic(true),
-            Tag::Link => color.set_fg(Some(Color::Blue)).set_underline(true),
-            Tag::Raw => color, // This is handled within [`highlight_raw`].
-            Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(true),
-            Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(true),
-            Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(true),
-            Tag::ListMarker => color.set_fg(Some(Color::Cyan)),
-            Tag::ListTerm => color.set_fg(Some(Color::Cyan)),
-            Tag::MathDelimiter => color.set_fg(Some(Color::Cyan)),
-            Tag::MathOperator => color.set_fg(Some(Color::Cyan)),
-            Tag::Keyword => color.set_fg(Some(Color::Magenta)),
-            Tag::Operator => color.set_fg(Some(Color::Cyan)),
-            Tag::Number => color.set_fg(Some(Color::Yellow)),
-            Tag::String => color.set_fg(Some(Color::Green)),
-            Tag::Function => color.set_fg(Some(Color::Blue)).set_italic(true),
-            Tag::Interpolated => color.set_fg(Some(Color::White)),
-            Tag::Error => color.set_fg(Some(Color::Red)),
-        };
-        out.set_color(color)?;
-    }
-
-    if let Some(raw) = ast::Raw::from_untyped(node) {
-        highlight_raw(options, out, raw)?;
-    } else if node.text().is_empty() {
-        for child in node.children() {
-            highlight(options, out, color, &child)?;
-        }
-    } else {
-        write!(out, "{}", node.text())?;
-    }
-
-    out.set_color(&prev_color)?;
-    *color = prev_color;
-
-    Ok(())
+/// The kind of input syntax.
+#[derive(Debug, Clone, Copy)]
+pub enum SyntaxMode {
+    Code,
+    Markup,
+    Math,
 }
 
-fn highlight_raw<W: WriteColor>(
-    options: &Options,
-    out: &mut DeferredWriter<W>,
-    raw: ast::Raw<'_>,
-) -> Result<()> {
-    let mut color = ColorSpec::new();
-    color.set_fg(Some(Color::White));
+impl FromStr for SyntaxMode {
+    type Err = Error;
 
-    let text = raw.to_untyped().clone().into_text();
-
-    // Collect backticks and escape if discord is enabled.
-    let fence: String = {
-        let backticks = text.chars().take_while(|&c| c == '`');
-        if options.discord {
-            let mut fence: String = backticks.flat_map(|c| [c, ZERO_WIDTH_JOINER]).collect();
-            fence.pop();
-            fence
-        } else {
-            backticks.collect()
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "code" => Ok(SyntaxMode::Code),
+            "markup" => Ok(SyntaxMode::Markup),
+            "math" => Ok(SyntaxMode::Math),
+            _ => Err(Error::UnknownMode),
         }
-    };
+    }
+}
 
-    // Write opening fence.
-    out.set_color(&color)?;
-    write!(out, "{fence}")?;
+impl fmt::Display for SyntaxMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SyntaxMode::Code => write!(f, "code"),
+            SyntaxMode::Markup => write!(f, "markup"),
+            SyntaxMode::Math => write!(f, "math"),
+        }
+    }
+}
 
-    if let Some(lang) = raw.lang() {
-        write!(out, "{}", lang.get())?;
+#[derive(Debug, Clone, Copy)]
+pub struct Highlighter {
+    discord: bool,
+    syntax_mode: SyntaxMode,
+}
+
+impl Default for Highlighter {
+    fn default() -> Self {
+        Highlighter {
+            discord: false,
+            syntax_mode: SyntaxMode::Markup,
+        }
+    }
+}
+
+impl Highlighter {
+    /// Enable output specifically for Discord.
+    ///
+    /// If enabled, output will be surrounded by a `ansi` language code block.
+    /// Additionally, any code blocks will be escaped.
+    /// The output might not look like the input.
+    ///
+    /// Default: `false`.
+    pub fn for_discord(&mut self) -> &mut Self {
+        self.discord = true;
+        self
     }
 
-    // Trim starting fences.
-    let mut inner = text.trim_start_matches('`');
-    // Trim closing fences.
-    inner = &inner[..inner.len() - (text.len() - inner.len())];
-
-    if let Some(lang) = raw.lang() {
-        let lang = lang.get();
-        inner = &inner[lang.len()..]; // Trim language.
-        highlight_lang(inner, lang, out)?;
-    } else {
-        write!(out, "{inner}")?;
+    /// When parsing, how the input should be interpreted.
+    ///
+    /// Default: [`SyntaxMode::Markup`].
+    pub fn with_syntax_mode(&mut self, mode: SyntaxMode) -> &mut Self {
+        self.syntax_mode = mode;
+        self
     }
 
-    out.set_color(&color)?;
+    /// Highlight Typst code and return the highlighted string.
+    pub fn highlight(&self, input: &str) -> Result<String, Error> {
+        let mut out = termcolor::Ansi::new(Vec::new());
+        self.highlight_to(input, &mut out)?;
+        Ok(String::from_utf8(out.into_inner()).expect("the output should be entirely UTF-8"))
+    }
 
-    // Write closing fence.
-    write!(out, "{fence}")?;
+    /// Highlight Typst code and write it to the given output.
+    pub fn highlight_to<W: WriteColor>(&self, input: &str, out: W) -> Result<(), Error> {
+        let parsed = match self.syntax_mode {
+            SyntaxMode::Code => typst_syntax::parse_code(input),
+            SyntaxMode::Markup => typst_syntax::parse(input),
+            SyntaxMode::Math => typst_syntax::parse_math(input),
+        };
+        let linked = typst_syntax::LinkedNode::new(&parsed);
+        self.highlight_node_to(&linked, out)
+    }
 
-    Ok(())
+    /// Highlight a linked syntax node and write it to the given output.
+    ///
+    /// Use [`typst_syntax::parse`] to parse a string into a [`SyntaxNode`], and then
+    /// use [`LinkedNode::new`] on the parsed syntax node to obtain a [`LinkedNode`]
+    /// you can use with this function.
+    ///
+    /// [`SyntaxNode`]: typst_syntax::SyntaxNode
+    pub fn highlight_node_to<W: WriteColor>(&self, node: &LinkedNode, out: W) -> Result<(), Error> {
+        fn internal<W: WriteColor>(
+            highlighter: &Highlighter,
+            node: &LinkedNode,
+            out: &mut DeferredWriter<W>,
+            color: &mut ColorSpec,
+        ) -> Result<(), Error> {
+            let prev_color = color.clone();
+
+            if let Some(tag) = typst_syntax::highlight(node) {
+                *color = ColorSpec::default();
+                match tag {
+                    Tag::Comment => color.set_fg(Some(Color::Black)).set_dimmed(true),
+                    Tag::Punctuation => color.set_fg(None),
+                    Tag::Escape => color.set_fg(Some(Color::Cyan)),
+                    Tag::Strong => color.set_fg(Some(Color::Yellow)).set_bold(true),
+                    Tag::Emph => color.set_fg(Some(Color::Yellow)).set_italic(true),
+                    Tag::Link => color.set_fg(Some(Color::Blue)).set_underline(true),
+                    Tag::Raw => color, // This is handled within [`highlight_raw`].
+                    Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(true),
+                    Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(true),
+                    Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(true),
+                    Tag::ListMarker => color.set_fg(Some(Color::Cyan)),
+                    Tag::ListTerm => color.set_fg(Some(Color::Cyan)),
+                    Tag::MathDelimiter => color.set_fg(Some(Color::Cyan)),
+                    Tag::MathOperator => color.set_fg(Some(Color::Cyan)),
+                    Tag::Keyword => color.set_fg(Some(Color::Magenta)),
+                    Tag::Operator => color.set_fg(Some(Color::Cyan)),
+                    Tag::Number => color.set_fg(Some(Color::Yellow)),
+                    Tag::String => color.set_fg(Some(Color::Green)),
+                    Tag::Function => color.set_fg(Some(Color::Blue)).set_italic(true),
+                    Tag::Interpolated => color.set_fg(Some(Color::White)),
+                    Tag::Error => color.set_fg(Some(Color::Red)),
+                };
+                out.set_color(color)?;
+            }
+
+            if let Some(raw) = ast::Raw::from_untyped(node) {
+                highlighter.highlight_raw(out, raw)?;
+            } else if node.text().is_empty() {
+                for child in node.children() {
+                    internal(highlighter, &child, out, color)?;
+                }
+            } else {
+                write!(out, "{}", node.text())?;
+            }
+
+            out.set_color(&prev_color)?;
+            *color = prev_color;
+
+            Ok(())
+        }
+
+        let mut out = DeferredWriter::new(out);
+
+        if self.discord {
+            writeln!(out, "```ansi")?;
+        }
+
+        internal(self, node, &mut out, &mut ColorSpec::new())?;
+
+        if self.discord {
+            writeln!(out, "```")?;
+        }
+
+        Ok(())
+    }
+
+    fn highlight_raw<W: WriteColor>(
+        &self,
+        out: &mut DeferredWriter<W>,
+        raw: ast::Raw<'_>,
+    ) -> Result<(), Error> {
+        let mut color = ColorSpec::new();
+        color.set_fg(Some(Color::White));
+
+        let text = raw.to_untyped().clone().into_text();
+
+        // Collect backticks and escape if discord is enabled.
+        let fence: String = {
+            let backticks = text.chars().take_while(|&c| c == '`');
+            if self.discord {
+                let mut fence: String = backticks.flat_map(|c| [c, ZERO_WIDTH_JOINER]).collect();
+                fence.pop();
+                fence
+            } else {
+                backticks.collect()
+            }
+        };
+
+        // Write opening fence.
+        out.set_color(&color)?;
+        write!(out, "{fence}")?;
+
+        if let Some(lang) = raw.lang() {
+            write!(out, "{}", lang.get())?;
+        }
+
+        // Trim starting fences.
+        let mut inner = text.trim_start_matches('`');
+        // Trim closing fences.
+        inner = &inner[..inner.len() - (text.len() - inner.len())];
+
+        if let Some(lang) = raw.lang() {
+            let lang = lang.get();
+            inner = &inner[lang.len()..]; // Trim language.
+            highlight_lang(inner, lang, out)?;
+        } else {
+            write!(out, "{inner}")?;
+        }
+
+        out.set_color(&color)?;
+
+        // Write closing fence.
+        write!(out, "{fence}")?;
+
+        Ok(())
+    }
 }
 
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(two_face::syntax::extra_newlines);
@@ -157,7 +250,7 @@ fn highlight_lang<W: WriteColor>(
     input: &str,
     lang: &str,
     out: &mut DeferredWriter<W>,
-) -> Result<()> {
+) -> Result<(), Error> {
     let Some(syntax) = SYNTAX_SET.find_syntax_by_token(lang) else {
         write!(out, "{input}")?;
         return Ok(());
@@ -211,26 +304,19 @@ fn convert_rgb_to_ansi_color(r: u8, g: u8, b: u8, a: u8) -> Option<Color> {
 
 /// A writer that only sets the color when content is written.
 /// This is intended to lessen the size impact of unnecessary escape codes.
-pub struct DeferredWriter<W> {
-    pub inner: W,
+struct DeferredWriter<W> {
+    inner: W,
     current_color: ColorSpec,
     next_color: Option<ColorSpec>,
 }
 
 impl<W> DeferredWriter<W> {
-    /// Create a deferred writer.
-    /// Use this with the highlight functions.
-    pub fn new(writer: W) -> DeferredWriter<W> {
+    fn new(writer: W) -> DeferredWriter<W> {
         DeferredWriter {
             inner: writer,
             current_color: ColorSpec::new(),
             next_color: None,
         }
-    }
-
-    /// Extracts the inner writer from this DeferredWriter.
-    pub fn into_inner(self) -> W {
-        self.inner
     }
 }
 
