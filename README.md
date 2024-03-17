@@ -19,8 +19,9 @@ Arguments:
   [INPUT]  The input path. If unset, stdin is used
 
 Options:
-  -d, --discord  Whether the input should be formatted to be Discord-compatible
-  -h, --help     Print help
+  -d, --discord      Whether the input should be formatted to be Discord-compatible
+  -m, --mode <MODE>  The kind of input syntax [default: markup] [possible values: code, markup, math]
+  -h, --help         Print help
 ```
 
 ### Clipboard-based Workflow
