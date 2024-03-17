@@ -1,4 +1,4 @@
-use std::{fmt, io::Write, str::FromStr};
+use std::io::Write;
 
 use once_cell::sync::Lazy;
 use syntect::{
@@ -37,29 +37,6 @@ pub enum SyntaxMode {
     Code,
     Markup,
     Math,
-}
-
-impl FromStr for SyntaxMode {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "code" => Ok(SyntaxMode::Code),
-            "markup" => Ok(SyntaxMode::Markup),
-            "math" => Ok(SyntaxMode::Math),
-            _ => Err(Error::UnknownMode),
-        }
-    }
-}
-
-impl fmt::Display for SyntaxMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SyntaxMode::Code => write!(f, "code"),
-            SyntaxMode::Markup => write!(f, "markup"),
-            SyntaxMode::Math => write!(f, "math"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

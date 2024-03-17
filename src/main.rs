@@ -1,8 +1,8 @@
 use std::{io::Read, path::PathBuf};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use color_eyre::eyre::{Context as _, Result};
-use typst_ansi_hl::{Highlighter, SyntaxMode};
+use typst_ansi_hl::Highlighter;
 
 #[derive(clap::Parser)]
 struct Args {
@@ -14,8 +14,26 @@ struct Args {
     discord: bool,
 
     /// The kind of input syntax.
-    #[clap(short, long, default_value_t = SyntaxMode::Markup)]
+    #[clap(short, long, default_value = "markup")]
     mode: SyntaxMode,
+}
+
+/// The kind of input syntax.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum SyntaxMode {
+    Code,
+    Markup,
+    Math,
+}
+
+impl From<SyntaxMode> for typst_ansi_hl::SyntaxMode {
+    fn from(value: SyntaxMode) -> Self {
+        match value {
+            SyntaxMode::Code => typst_ansi_hl::SyntaxMode::Code,
+            SyntaxMode::Markup => typst_ansi_hl::SyntaxMode::Markup,
+            SyntaxMode::Math => typst_ansi_hl::SyntaxMode::Math,
+        }
+    }
 }
 
 fn main() -> Result<()> {
