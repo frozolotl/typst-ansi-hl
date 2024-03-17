@@ -110,31 +110,7 @@ impl Highlighter {
             let prev_color = color.clone();
 
             if let Some(tag) = typst_syntax::highlight(node) {
-                *color = ColorSpec::default();
-                match tag {
-                    Tag::Comment => color.set_fg(Some(Color::Black)).set_dimmed(true),
-                    Tag::Punctuation => color.set_fg(None),
-                    Tag::Escape => color.set_fg(Some(Color::Cyan)),
-                    Tag::Strong => color.set_fg(Some(Color::Yellow)).set_bold(true),
-                    Tag::Emph => color.set_fg(Some(Color::Yellow)).set_italic(true),
-                    Tag::Link => color.set_fg(Some(Color::Blue)).set_underline(true),
-                    Tag::Raw => color, // This is handled within [`highlight_raw`].
-                    Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(true),
-                    Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(true),
-                    Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(true),
-                    Tag::ListMarker => color.set_fg(Some(Color::Cyan)),
-                    Tag::ListTerm => color.set_fg(Some(Color::Cyan)),
-                    Tag::MathDelimiter => color.set_fg(Some(Color::Cyan)),
-                    Tag::MathOperator => color.set_fg(Some(Color::Cyan)),
-                    Tag::Keyword => color.set_fg(Some(Color::Magenta)),
-                    Tag::Operator => color.set_fg(Some(Color::Cyan)),
-                    Tag::Number => color.set_fg(Some(Color::Yellow)),
-                    Tag::String => color.set_fg(Some(Color::Green)),
-                    Tag::Function => color.set_fg(Some(Color::Blue)).set_italic(true),
-                    Tag::Interpolated => color.set_fg(Some(Color::White)),
-                    Tag::Error => color.set_fg(Some(Color::Red)),
-                };
-                out.set_color(color)?;
+                out.set_color(&highlighter.tag_to_color(tag))?;
             }
 
             if let Some(raw) = ast::Raw::from_untyped(node) {
@@ -181,9 +157,6 @@ impl Highlighter {
         out: &mut DeferredWriter<W>,
         raw: ast::Raw<'_>,
     ) -> Result<(), Error> {
-        let mut color = ColorSpec::new();
-        color.set_fg(Some(Color::White));
-
         let text = raw.to_untyped().clone().into_text();
 
         // Collect backticks and escape if discord is enabled.
@@ -199,7 +172,11 @@ impl Highlighter {
         };
 
         // Write opening fence.
-        out.set_color(&color)?;
+        if self.discord {
+            out.set_color(&self.tag_to_color(Tag::Comment))?;
+            write!(out, "/* when copying, remove and retype these --> */")?;
+        }
+        out.set_color(&self.tag_to_color(Tag::Raw))?;
         write!(out, "{fence}")?;
 
         if let Some(lang) = raw.lang() {
@@ -219,12 +196,49 @@ impl Highlighter {
             write!(out, "{inner}")?;
         }
 
-        out.set_color(&color)?;
-
         // Write closing fence.
+        out.set_color(&self.tag_to_color(Tag::Raw))?;
         write!(out, "{fence}")?;
+        if self.discord {
+            out.set_color(&self.tag_to_color(Tag::Comment))?;
+            write!(out, "/* <-- when copying, remove and retype these */")?;
+        }
 
         Ok(())
+    }
+
+    fn tag_to_color(&self, tag: Tag) -> ColorSpec {
+        let mut color = ColorSpec::default();
+        match tag {
+            Tag::Comment => {
+                if self.discord {
+                    color.set_fg(Some(Color::Black))
+                } else {
+                    color.set_dimmed(true)
+                }
+            }
+            Tag::Punctuation => color.set_fg(None),
+            Tag::Escape => color.set_fg(Some(Color::Cyan)),
+            Tag::Strong => color.set_fg(Some(Color::Yellow)).set_bold(true),
+            Tag::Emph => color.set_fg(Some(Color::Yellow)).set_italic(true),
+            Tag::Link => color.set_fg(Some(Color::Blue)).set_underline(true),
+            Tag::Raw => color.set_fg(Some(Color::White)),
+            Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(true),
+            Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(true),
+            Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(true),
+            Tag::ListMarker => color.set_fg(Some(Color::Cyan)),
+            Tag::ListTerm => color.set_fg(Some(Color::Cyan)),
+            Tag::MathDelimiter => color.set_fg(Some(Color::Cyan)),
+            Tag::MathOperator => color.set_fg(Some(Color::Cyan)),
+            Tag::Keyword => color.set_fg(Some(Color::Magenta)),
+            Tag::Operator => color.set_fg(Some(Color::Cyan)),
+            Tag::Number => color.set_fg(Some(Color::Yellow)),
+            Tag::String => color.set_fg(Some(Color::Green)),
+            Tag::Function => color.set_fg(Some(Color::Blue)).set_italic(true),
+            Tag::Interpolated => color.set_fg(Some(Color::White)),
+            Tag::Error => color.set_fg(Some(Color::Red)),
+        };
+        color
     }
 }
 
