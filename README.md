@@ -16,12 +16,26 @@ You could use `typst-ansi-hl -d main.typ | xclip -selection clipboard` to copy D
 Usage: typst-ansi-hl [OPTIONS] [INPUT]
 
 Arguments:
-  [INPUT]  The input path. If unset, stdin is used
+  [INPUT]
+          The input path. If unset, stdin is used
 
 Options:
-  -d, --discord      Whether the input should be formatted to be Discord-compatible
-  -m, --mode <MODE>  The kind of input syntax [default: markup] [possible values: code, markup, math]
-  -h, --help         Print help
+  -d, --discord
+          Whether the input should be formatted to be Discord-compatible
+
+  -l, --soft-limit <SOFT_LIMIT>
+          Softly enforce a byte size limit.
+
+          This means that if the size limit is exceeded, less colors are used in order to get below that size limit. If it is not possible to get below that limit, the text is printed anyway.
+
+  -m, --mode <MODE>
+          The kind of input syntax
+
+          [default: markup]
+          [possible values: code, markup, math]
+
+  -h, --help
+          Print help (see a summary with '-h')
 ```
 
 ### Clipboard-based Workflow

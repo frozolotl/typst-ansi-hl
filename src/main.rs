@@ -13,6 +13,14 @@ struct Args {
     #[clap(short, long)]
     discord: bool,
 
+    /// Softly enforce a byte size limit.
+    ///
+    /// This means that if the size limit is exceeded, less colors are used
+    /// in order to get below that size limit.
+    /// If it is not possible to get below that limit, the text is printed anyway.
+    #[clap(short = 'l', long)]
+    soft_limit: Option<usize>,
+
     /// The kind of input syntax.
     #[clap(short, long, default_value = "markup")]
     mode: SyntaxMode,
@@ -56,6 +64,9 @@ fn main() -> Result<()> {
     let mut highlighter = Highlighter::default();
     if args.discord {
         highlighter.for_discord();
+    }
+    if let Some(soft_limit) = args.soft_limit {
+        highlighter.with_soft_limit(soft_limit);
     }
     highlighter
         .highlight_to(&input, out)

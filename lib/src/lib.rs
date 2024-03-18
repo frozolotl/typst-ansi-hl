@@ -43,6 +43,7 @@ pub enum SyntaxMode {
 pub struct Highlighter {
     discord: bool,
     syntax_mode: SyntaxMode,
+    soft_limit: Option<usize>,
 }
 
 impl Default for Highlighter {
@@ -50,6 +51,7 @@ impl Default for Highlighter {
         Highlighter {
             discord: false,
             syntax_mode: SyntaxMode::Markup,
+            soft_limit: None,
         }
     }
 }
@@ -72,6 +74,16 @@ impl Highlighter {
     /// Default: [`SyntaxMode::Markup`].
     pub fn with_syntax_mode(&mut self, mode: SyntaxMode) -> &mut Self {
         self.syntax_mode = mode;
+        self
+    }
+
+    /// Softly enforce a byte size limit.
+    ///
+    /// This means that if the size limit is exceeded, less colors are used
+    /// in order to get below that size limit.
+    /// If it is not possible to get below that limit, the text is printed anyway.
+    pub fn with_soft_limit(&mut self, soft_limit: usize) -> &mut Self {
+        self.soft_limit = Some(soft_limit);
         self
     }
 
@@ -100,9 +112,14 @@ impl Highlighter {
     /// you can use with this function.
     ///
     /// [`SyntaxNode`]: typst_syntax::SyntaxNode
-    pub fn highlight_node_to<W: WriteColor>(&self, node: &LinkedNode, out: W) -> Result<(), Error> {
-        fn internal<W: WriteColor>(
+    pub fn highlight_node_to<W: WriteColor>(
+        &self,
+        node: &LinkedNode,
+        mut out: W,
+    ) -> Result<(), Error> {
+        fn inner_highlight_node<W: WriteColor>(
             highlighter: &Highlighter,
+            hl_level: HighlightLevel,
             node: &LinkedNode,
             out: &mut DeferredWriter<W>,
             color: &mut ColorSpec,
@@ -110,14 +127,14 @@ impl Highlighter {
             let prev_color = color.clone();
 
             if let Some(tag) = typst_syntax::highlight(node) {
-                out.set_color(&highlighter.tag_to_color(tag))?;
+                out.set_color(&highlighter.tag_to_color(hl_level, tag))?;
             }
 
             if let Some(raw) = ast::Raw::from_untyped(node) {
-                highlighter.highlight_raw(out, raw)?;
+                highlighter.highlight_raw(hl_level, out, raw)?;
             } else if node.text().is_empty() {
                 for child in node.children() {
-                    internal(highlighter, &child, out, color)?;
+                    inner_highlight_node(highlighter, hl_level, &child, out, color)?;
                 }
             } else {
                 write!(out, "{}", node.text())?;
@@ -129,24 +146,55 @@ impl Highlighter {
             Ok(())
         }
 
-        let mut out = DeferredWriter::new(out);
+        fn inner<W: WriteColor>(
+            highlighter: &Highlighter,
+            node: &LinkedNode,
+            out: W,
+            hl_level: HighlightLevel,
+        ) -> Result<(), Error> {
+            let mut out = DeferredWriter::new(out);
+            if highlighter.discord {
+                writeln!(out, "```ansi")?;
+            }
 
-        if self.discord {
-            writeln!(out, "```ansi")?;
+            inner_highlight_node(highlighter, hl_level, node, &mut out, &mut ColorSpec::new())?;
+
+            if highlighter.discord {
+                // Make sure that the closing fences are on their own line.
+                let mut last_leaf = node.clone();
+                while let Some(child) = last_leaf.children().last() {
+                    last_leaf = child;
+                }
+                if !last_leaf.text().ends_with('\n') {
+                    writeln!(out)?;
+                }
+                writeln!(out, "```")?;
+            }
+            Ok(())
         }
 
-        internal(self, node, &mut out, &mut ColorSpec::new())?;
-
-        if self.discord {
-            // Make sure that the closing fences are on their own line.
-            let mut last_leaf = node.clone();
-            while let Some(child) = last_leaf.children().last() {
-                last_leaf = child;
+        if let Some(soft_limit) = self.soft_limit {
+            // Because a soft limit is given, we highlight everything to an in-memory buffer
+            // and check whether the output length is less than the limit.
+            // If the limit was reached, we lower the highlight level.
+            // Otherwise, we write it to the real output.
+            // If the highlight level was reached, we _always_ write the output without highlighting.
+            let mut buf_out = termcolor::Ansi::new(Vec::new());
+            let mut level = HighlightLevel::All;
+            loop {
+                inner(self, node, &mut buf_out, level)?;
+                let mut buf = buf_out.into_inner();
+                if buf.len() < soft_limit || level == HighlightLevel::Off {
+                    out.write_all(&buf)?;
+                    break;
+                } else {
+                    buf.clear();
+                    buf_out = termcolor::Ansi::new(buf);
+                    level = level.restrict();
+                }
             }
-            if !last_leaf.text().ends_with('\n') {
-                writeln!(out)?;
-            }
-            writeln!(out, "```")?;
+        } else {
+            inner(self, node, out, HighlightLevel::All)?;
         }
 
         Ok(())
@@ -154,6 +202,7 @@ impl Highlighter {
 
     fn highlight_raw<W: WriteColor>(
         &self,
+        hl_level: HighlightLevel,
         out: &mut DeferredWriter<W>,
         raw: ast::Raw<'_>,
     ) -> Result<(), Error> {
@@ -173,10 +222,10 @@ impl Highlighter {
 
         // Write opening fence.
         if self.discord {
-            out.set_color(&self.tag_to_color(Tag::Comment))?;
+            out.set_color(&self.tag_to_color(hl_level, Tag::Comment))?;
             write!(out, "/* when copying, remove and retype these --> */")?;
         }
-        out.set_color(&self.tag_to_color(Tag::Raw))?;
+        out.set_color(&self.tag_to_color(hl_level, Tag::Raw))?;
         write!(out, "{fence}")?;
 
         if let Some(lang) = raw.lang() {
@@ -188,7 +237,7 @@ impl Highlighter {
         // Trim closing fences.
         inner = &inner[..inner.len() - (text.len() - inner.len())];
 
-        if let Some(lang) = raw.lang() {
+        if let Some(lang) = raw.lang().filter(|_| hl_level >= HighlightLevel::WithRaw) {
             let lang = lang.get();
             inner = &inner[lang.len()..]; // Trim language tag.
             highlight_lang(inner, lang, out)?;
@@ -197,18 +246,21 @@ impl Highlighter {
         }
 
         // Write closing fence.
-        out.set_color(&self.tag_to_color(Tag::Raw))?;
+        out.set_color(&self.tag_to_color(hl_level, Tag::Raw))?;
         write!(out, "{fence}")?;
         if self.discord {
-            out.set_color(&self.tag_to_color(Tag::Comment))?;
+            out.set_color(&self.tag_to_color(hl_level, Tag::Comment))?;
             write!(out, "/* <-- when copying, remove and retype these */")?;
         }
 
         Ok(())
     }
 
-    fn tag_to_color(&self, tag: Tag) -> ColorSpec {
+    fn tag_to_color(&self, hl_level: HighlightLevel, tag: Tag) -> ColorSpec {
         let mut color = ColorSpec::default();
+        let l1 = hl_level >= HighlightLevel::L1;
+        let l2 = hl_level >= HighlightLevel::L2;
+        let with_styles = hl_level >= HighlightLevel::WithStyles;
         match tag {
             Tag::Comment => {
                 if self.discord {
@@ -217,26 +269,27 @@ impl Highlighter {
                     color.set_dimmed(true)
                 }
             }
-            Tag::Punctuation => color.set_fg(None),
+            Tag::Punctuation if l1 => color.set_fg(None),
             Tag::Escape => color.set_fg(Some(Color::Cyan)),
-            Tag::Strong => color.set_fg(Some(Color::Yellow)).set_bold(true),
-            Tag::Emph => color.set_fg(Some(Color::Yellow)).set_italic(true),
-            Tag::Link => color.set_fg(Some(Color::Blue)).set_underline(true),
+            Tag::Strong if l1 => color.set_fg(Some(Color::Yellow)).set_bold(with_styles),
+            Tag::Emph if l1 => color.set_fg(Some(Color::Yellow)).set_italic(with_styles),
+            Tag::Link if l1 => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
             Tag::Raw => color.set_fg(Some(Color::White)),
-            Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(true),
-            Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(true),
-            Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(true),
+            Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
+            Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
+            Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(with_styles),
             Tag::ListMarker => color.set_fg(Some(Color::Cyan)),
             Tag::ListTerm => color.set_fg(Some(Color::Cyan)),
-            Tag::MathDelimiter => color.set_fg(Some(Color::Cyan)),
+            Tag::MathDelimiter if l2 => color.set_fg(Some(Color::Cyan)),
             Tag::MathOperator => color.set_fg(Some(Color::Cyan)),
             Tag::Keyword => color.set_fg(Some(Color::Magenta)),
-            Tag::Operator => color.set_fg(Some(Color::Cyan)),
+            Tag::Operator if l2 => color.set_fg(Some(Color::Cyan)),
             Tag::Number => color.set_fg(Some(Color::Yellow)),
             Tag::String => color.set_fg(Some(Color::Green)),
-            Tag::Function => color.set_fg(Some(Color::Blue)).set_italic(true),
-            Tag::Interpolated => color.set_fg(Some(Color::White)),
+            Tag::Function if l2 => color.set_fg(Some(Color::Blue)).set_italic(with_styles),
+            Tag::Interpolated if l2 => color.set_fg(Some(Color::White)),
             Tag::Error => color.set_fg(Some(Color::Red)),
+            _ => &mut color,
         };
         color
     }
@@ -298,6 +351,35 @@ fn convert_rgb_to_ansi_color(r: u8, g: u8, b: u8, a: u8) -> Option<Color> {
         }),
         1 => None,
         _ => Some(Color::Ansi256(ansi_colours::ansi256_from_rgb((r, g, b)))),
+    }
+}
+
+/// What things to highlight.
+/// Lower values mean less highlighting.
+///
+/// Used when a soft limit is set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum HighlightLevel {
+    Off,
+    L1,
+    L2,
+    /// Highlight raw blocks.
+    WithRaw,
+    /// Use styles like bold, italic, underline.
+    WithStyles,
+    All,
+}
+
+impl HighlightLevel {
+    fn restrict(self) -> HighlightLevel {
+        match self {
+            HighlightLevel::Off => HighlightLevel::Off,
+            HighlightLevel::L1 => HighlightLevel::Off,
+            HighlightLevel::L2 => HighlightLevel::L1,
+            HighlightLevel::WithRaw => HighlightLevel::L2,
+            HighlightLevel::WithStyles => HighlightLevel::WithRaw,
+            HighlightLevel::All => HighlightLevel::WithStyles,
+        }
     }
 }
 
