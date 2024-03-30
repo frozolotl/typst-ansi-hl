@@ -209,19 +209,22 @@ impl Highlighter {
         let text = raw.to_untyped().clone().into_text();
 
         // Collect backticks and escape if discord is enabled.
-        let fence: String = {
-            let backticks = text.chars().take_while(|&c| c == '`');
-            if self.discord {
-                let mut fence: String = backticks.flat_map(|c| [c, ZERO_WIDTH_JOINER]).collect();
+        let backticks: String = text.chars().take_while(|&c| c == '`').collect();
+        let (fence, is_pure_fence) = {
+            if self.discord && backticks.len() >= 3 {
+                let mut fence: String = backticks
+                    .chars()
+                    .flat_map(|c| [c, ZERO_WIDTH_JOINER])
+                    .collect();
                 fence.pop();
-                fence
+                (fence, false)
             } else {
-                backticks.collect()
+                (backticks, true)
             }
         };
 
         // Write opening fence.
-        if self.discord {
+        if self.discord && !is_pure_fence {
             out.set_color(&self.tag_to_color(hl_level, Tag::Comment))?;
             write!(out, "/* when copying, remove and retype these --> */")?;
         }
@@ -248,7 +251,7 @@ impl Highlighter {
         // Write closing fence.
         out.set_color(&self.tag_to_color(hl_level, Tag::Raw))?;
         write!(out, "{fence}")?;
-        if self.discord {
+        if self.discord && !is_pure_fence {
             out.set_color(&self.tag_to_color(hl_level, Tag::Comment))?;
             write!(out, "/* <-- when copying, remove and retype these */")?;
         }
