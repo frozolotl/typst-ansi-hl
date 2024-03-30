@@ -65,6 +65,7 @@ fn main() -> Result<()> {
     if args.discord {
         highlighter.for_discord();
     }
+    highlighter.with_syntax_mode(args.mode.into());
     if let Some(soft_limit) = args.soft_limit {
         highlighter.with_soft_limit(soft_limit);
     }
