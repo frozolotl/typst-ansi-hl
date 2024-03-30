@@ -10,7 +10,7 @@ cargo install --path .
 
 ## Usage
 Simply run `typst-ansi-hl main.typ` or pipe the source code into `typst-ansi-hl`.
-You could use `typst-ansi-hl -d main.typ | xclip -selection clipboard` to copy Discord-compatible output to your clipboard.
+You could use `typst-ansi-hl --discord main.typ | xclip -selection clipboard` to copy Discord-compatible output to your clipboard.
 
 ```
 Usage: typst-ansi-hl [OPTIONS] [INPUT]
@@ -42,13 +42,13 @@ Options:
 You can bind one of the following commands to a certain key bind for improved ease-of-use:
 ```sh
 # Linux X11 (Bash/Zsh/Fish/Nushell)
-xclip -selection clipboard -out | typst-ansi-hl --discord | xclip -selection clipboard -in
+xclip -selection clipboard -out | typst-ansi-hl --discord --soft-limit 2000 | xclip -selection clipboard -in
 
 # Linux Wayland (Bash/Zsh/Fish/Nushell)
-wl-paste | typst-ansi-hl --discord | wl-copy
+wl-paste | typst-ansi-hl --discord --soft-limit 2000 | wl-copy
 
 # Windows (PowerShell)
-Get-Clipboard | typst-ansi-hl --discord | Set-Clipboard
+Get-Clipboard | typst-ansi-hl --discord --soft-limit 2000 | Set-Clipboard
 ```
 
 ## Legal
