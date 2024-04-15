@@ -51,5 +51,9 @@ wl-paste | typst-ansi-hl --discord --soft-limit 2000 | wl-copy
 Get-Clipboard | typst-ansi-hl --discord --soft-limit 2000 | Set-Clipboard
 ```
 
+### Library
+You can also use this crate as a library.
+See the [documentation](https://docs.rs/typst-ansi-hl/latest) for further details.
+
 ## Legal
 This software is not affiliated with Typst, the brand.

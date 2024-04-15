@@ -1,3 +1,12 @@
+//! `typst-ansi-hl` highlights your Typst code using ANSI escape sequences.
+//!
+//! ```
+//! # use typst_ansi_hl::Highlighter;
+//! let output = Highlighter::default()
+//!     .for_discord()
+//!     .with_soft_limit(2000)
+//!     .highlight("This is _Typst_ #underline[code].");
+//! ```
 use std::io::Write;
 
 use once_cell::sync::Lazy;
