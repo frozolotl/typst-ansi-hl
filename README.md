@@ -23,14 +23,28 @@ Options:
   -d, --discord
           Whether the input should be formatted to be Discord-compatible
 
+  -s, --strip-ansi
+          Strip all ANSI escape sequences from the input before processing. [default]
+
+  -S, --no-strip-ansi
+          Don't remove escape sequences from the input
+
+  -c, --unwrap-codeblock
+          If the input is surrounded by "```" lines, remove them.
+          
+          The opening delimiter will be matched even when followed by some non-whitespace 'word'. The closing delimiter will be matched even when followed by a newline.
+
+  -C, --no-unwrap-codeblock
+          Don't remove surrounding "```" from the input. [default]
+
   -l, --soft-limit <SOFT_LIMIT>
           Softly enforce a byte size limit.
-
+          
           This means that if the size limit is exceeded, less colors are used in order to get below that size limit. If it is not possible to get below that limit, the text is printed anyway.
 
   -m, --mode <MODE>
           The kind of input syntax
-
+          
           [default: markup]
           [possible values: code, markup, math]
 

@@ -37,6 +37,7 @@ typst-syntax = "0.11.0"
 [dependencies]
 clap = { workspace = true }
 color-eyre = { workspace = true }
+strip-ansi-escapes = "0.2.0"
 termcolor = { workspace = true }
 typst-ansi-hl = { workspace = true }
 typst-syntax = { workspace = true }
