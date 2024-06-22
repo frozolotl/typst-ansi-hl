@@ -32,8 +32,6 @@ const ZERO_WIDTH_JOINER: char = '\u{200D}';
 /// Any error returned by this library.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("syntax mode is not one of `code`, `markup`, `math`")]
-    UnknownMode,
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
