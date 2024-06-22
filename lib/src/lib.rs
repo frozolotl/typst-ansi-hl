@@ -31,6 +31,7 @@ const ZERO_WIDTH_JOINER: char = '\u{200D}';
 
 /// Any error returned by this library.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
