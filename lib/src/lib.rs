@@ -219,16 +219,18 @@ impl Highlighter {
 
         // Collect backticks and escape if discord is enabled.
         let backticks: String = text.chars().take_while(|&c| c == '`').collect();
-        let (fence, is_pure_fence) = {
+        let (fence, is_pure_fence, include_content) = {
             if self.discord && backticks.len() >= 3 {
                 let mut fence: String = backticks
                     .chars()
                     .flat_map(|c| [c, ZERO_WIDTH_JOINER])
                     .collect();
                 fence.pop();
-                (fence, false)
+                (fence, false, true)
+            } else if backticks.len() == 2 {
+                ("`".to_string(), true, false)
             } else {
-                (backticks, true)
+                (backticks, true, true)
             }
         };
 
@@ -240,21 +242,23 @@ impl Highlighter {
         out.set_color(&self.tag_to_color(hl_level, Tag::Raw))?;
         write!(out, "{fence}")?;
 
-        if let Some(lang) = raw.lang() {
-            write!(out, "{}", lang.get())?;
-        }
+        if include_content {
+            if let Some(lang) = raw.lang() {
+                write!(out, "{}", lang.get())?;
+            }
 
-        // Trim starting fences.
-        let mut inner = text.trim_start_matches('`');
-        // Trim closing fences.
-        inner = &inner[..inner.len() - (text.len() - inner.len())];
+            // Trim starting fences.
+            let mut inner = text.trim_start_matches('`');
+            // Trim closing fences.
+            inner = &inner[..inner.len() - (text.len() - inner.len())];
 
-        if let Some(lang) = raw.lang().filter(|_| hl_level >= HighlightLevel::WithRaw) {
-            let lang = lang.get();
-            inner = &inner[lang.len()..]; // Trim language tag.
-            highlight_lang(inner, lang, out)?;
-        } else {
-            write!(out, "{inner}")?;
+            if let Some(lang) = raw.lang().filter(|_| hl_level >= HighlightLevel::WithRaw) {
+                let lang = lang.get();
+                inner = &inner[lang.len()..]; // Trim language tag.
+                highlight_lang(inner, lang, out)?;
+            } else {
+                write!(out, "{inner}")?;
+            }
         }
 
         // Write closing fence.
