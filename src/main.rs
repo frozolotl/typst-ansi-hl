@@ -39,6 +39,16 @@ struct Args {
     #[doc(hidden)]
     _no_unwrap_codeblock: bool,
 
+    /// Strip any top-level indentation in the input prior to highlighting it.
+    #[clap(short = 'u', long, overrides_with = "_no_unindent")]
+    unindent: bool,
+
+    /// Keep indents as-is. [default]
+    #[clap(short = 'U', long = "no-unindent")]
+    #[clap(hide_short_help = true)]
+    #[doc(hidden)]
+    _no_unindent: bool,
+
     /// Softly enforce a byte size limit.
     ///
     /// This means that if the size limit is exceeded, less colors are used
@@ -97,6 +107,11 @@ fn main() -> Result<()> {
         stripped = &input;
     }
 
+    if args.unindent {
+        input = dedent(stripped);
+        stripped = &input;
+    }
+
     let out = termcolor::Ansi::new(std::io::stdout().lock());
     let mut highlighter = Highlighter::default();
     if args.discord {
@@ -122,4 +137,28 @@ fn unwrap_codeblock(input: &str) -> &str {
         return input;
     };
     rest
+}
+
+fn dedent(input: &str) -> String {
+    let shared_indent = input
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| {
+            let nonspace = l.find(|c: char| !c.is_whitespace()).unwrap();
+            &l[..nonspace]
+        })
+        .min_by_key(|s| s.len() + s.matches('\t').count()) // Assume tabs are 2-wide
+        .unwrap_or("");
+
+    input
+        .split_inclusive('\n')
+        .map(|l| {
+            if shared_indent.starts_with(l) {
+                // Trim partial indents
+                ""
+            } else {
+                l.strip_prefix(shared_indent).unwrap_or(l)
+            }
+        })
+        .collect()
 }
