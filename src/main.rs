@@ -13,6 +13,16 @@ struct Args {
     #[clap(short, long)]
     discord: bool,
 
+    /// Wrap the output in a Discord-flavoured-markdown–style ANSI codeblock.
+    #[clap(short, long, overrides_with = "_no_discord")]
+    discord: bool,
+
+    /// Don't wrap the output in a markdown-style codeblock. [default]
+    #[clap(short = 'D', long = "no-discord")]
+    #[clap(hide_short_help = true)]
+    #[doc(hidden)]
+    _no_discord: bool,
+
     // Logically this comes after `Args::strip_ansi`, but in clap it makes more sense before.
     // Also see https://jwodder.github.io/kbits/posts/clap-bool-negate/
     /// Strip all ANSI escape sequences from the input before processing. [default]
