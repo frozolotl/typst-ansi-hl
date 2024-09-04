@@ -9,10 +9,6 @@ struct Args {
     /// The input path. If unset, stdin is used.
     input: Option<PathBuf>,
 
-    /// Whether the input should be formatted to be Discord-compatible.
-    #[clap(short, long)]
-    discord: bool,
-
     /// Wrap the output in a Discord-flavoured-markdown–style ANSI codeblock.
     #[clap(short, long, overrides_with = "_no_discord")]
     discord: bool,
@@ -112,7 +108,9 @@ fn main() -> Result<()> {
         &input
     };
 
-    if args.strip_ansi {
+    // If the input doesn't contain escape sequences, avoid processing it because strip-ansi-escapes
+    // also strips tabs unfortunately. (https://github.com/luser/strip-ansi-escapes/issues/20)
+    if args.strip_ansi && stripped.contains('\x1B') {
         input = strip_ansi_escapes::strip_str(stripped);
         stripped = &input;
     }
