@@ -33,6 +33,7 @@
 
         typst-ansi-hl = craneLib.buildPackage (commonArgs // {
           inherit cargoArtifacts;
+          meta.mainProgram = "typst-ansi-hl";
         });
       in
       {
