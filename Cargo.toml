@@ -45,4 +45,3 @@ strip-ansi-escapes = "0.2.0"
 termcolor = { workspace = true }
 typst-ansi-hl = { workspace = true }
 typst-syntax = { workspace = true }
-unindent = "0.2.3"
