@@ -116,7 +116,7 @@ fn main() -> Result<()> {
     }
 
     if args.unindent {
-        input = dedent(stripped);
+        input = unindent::unindent(stripped);
         stripped = &input;
     }
 
@@ -145,28 +145,4 @@ fn unwrap_codeblock(input: &str) -> &str {
         return input;
     };
     rest
-}
-
-fn dedent(input: &str) -> String {
-    let shared_indent = input
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| {
-            let nonspace = l.find(|c: char| !c.is_whitespace()).unwrap();
-            &l[..nonspace]
-        })
-        .min_by_key(|s| s.len() + s.matches('\t').count()) // Assume tabs are 2-wide
-        .unwrap_or("");
-
-    input
-        .split_inclusive('\n')
-        .map(|l| {
-            if shared_indent.starts_with(l) {
-                // Trim partial indents
-                ""
-            } else {
-                l.strip_prefix(shared_indent).unwrap_or(l)
-            }
-        })
-        .collect()
 }
