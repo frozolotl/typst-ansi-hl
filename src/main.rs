@@ -116,7 +116,7 @@ fn main() -> Result<()> {
     }
 
     if args.unindent {
-        input = dedent(stripped);
+        input = unindent(stripped);
         stripped = &input;
     }
 
@@ -147,25 +147,47 @@ fn unwrap_codeblock(input: &str) -> &str {
     rest
 }
 
-fn dedent(input: &str) -> String {
-    let shared_indent = input
-        .lines()
-        .filter_map(|line| {
-            let nonspace = line.find(|c: char| !c.is_whitespace())?;
-            Some(&line[..nonspace])
-        })
-        .min_by_key(|s| s.len() + s.matches('\t').count()) // Assume tabs are 2-wide
-        .unwrap_or("");
+/// Removes any indentation present on all non-empty lines.
+///
+/// The same kinds of whitespaces must be present on all lines.
+/// Tabs on one line will prevent spaces on another line from being trimmed.
+fn unindent(input: &str) -> String {
+    let mut nonempty_lines = input.lines().filter_map(|line| {
+        let nonspace = line.find(|c: char| !c.is_whitespace())?;
+        Some(&line[..nonspace])
+    });
+    let first_indent = nonempty_lines.next().unwrap_or("");
+    let shared_indent = nonempty_lines.fold(first_indent, |shared_indent, indent| {
+        if indent.starts_with(shared_indent) {
+            return shared_indent;
+        }
+
+        let in_common = Iterator::zip(shared_indent.bytes(), indent.bytes())
+            .position(|(shared, this)| shared != this)
+            .unwrap_or(indent.len());
+        &shared_indent[..in_common]
+    });
 
     input
         .split_inclusive('\n')
-        .map(|l| {
-            if shared_indent.starts_with(l) {
-                // Trim partial indents
-                ""
-            } else {
-                l.strip_prefix(shared_indent).unwrap_or(l)
-            }
-        })
+        .map(|line| line.strip_prefix(shared_indent).unwrap_or(line))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unindent() {
+        assert_eq!(unindent("hello"), "hello");
+        assert_eq!(unindent("  hello"), "hello");
+        assert_eq!(unindent("\thello"), "hello");
+        assert_eq!(unindent("\t  hello"), "hello");
+        assert_eq!(unindent("hello\nworld"), "hello\nworld");
+        assert_eq!(unindent("  hello\n  world"), "hello\nworld");
+        assert_eq!(unindent("  hello\n    world"), "hello\n  world");
+        assert_eq!(unindent("    hello\n  world"), "  hello\nworld");
+        assert_eq!(unindent("  hello\n \tworld"), " hello\n\tworld");
+    }
 }
