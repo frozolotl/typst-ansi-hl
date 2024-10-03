@@ -746,7 +746,6 @@ name = "typst-ansi-hl"
 version = "0.2.0"
 dependencies = [
  "ansi_colours",
- "once_cell",
  "syntect",
  "termcolor",
  "thiserror",

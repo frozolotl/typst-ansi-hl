@@ -7,9 +7,8 @@
 //!     .with_soft_limit(2000)
 //!     .highlight("This is _Typst_ #underline[code].");
 //! ```
-use std::io::Write;
+use std::{io::Write, sync::LazyLock};
 
-use once_cell::sync::Lazy;
 use syntect::{
     easy::HighlightLines, highlighting::FontStyle, parsing::SyntaxSet, util::LinesWithEndings,
 };
@@ -310,8 +309,8 @@ impl Highlighter {
     }
 }
 
-static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(two_face::syntax::extra_newlines);
-static THEME_SET: Lazy<EmbeddedLazyThemeSet> = Lazy::new(two_face::theme::extra);
+static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(two_face::syntax::extra_newlines);
+static THEME_SET: LazyLock<EmbeddedLazyThemeSet> = LazyLock::new(two_face::theme::extra);
 
 fn highlight_lang<W: WriteColor>(
     input: &str,

@@ -9,12 +9,17 @@ authors = ["frozolotl <frozolotl@protonmail.com>"]
 description = "typst-ansi-hl highlights your Typst code using ANSI escape sequences."
 license = "EUPL-1.2"
 repository = "https://github.com/frozolotl/typst-ansi-hl"
+rust-version = "1.80"
 
 [package]
 name = "typst-ansi-hl-cli"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }
+description = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 
 [[bin]]
 name = "typst-ansi-hl"
@@ -26,7 +31,6 @@ path = "src/main.rs"
 ansi_colours = "1.2.2"
 clap = { version = "4.5.19", features = ["derive"] }
 color-eyre = "0.6.3"
-once_cell = "1.20.1"
 syntect = { version = "5.2.0", default-features = false, features = ["parsing", "regex-fancy"] }
 termcolor = "1.4.1"
 thiserror = "1.0.64"
