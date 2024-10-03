@@ -21,7 +21,10 @@ Arguments:
 
 Options:
   -d, --discord
-          Whether the input should be formatted to be Discord-compatible
+          Wrap the output in a Discord-flavoured-markdown–style ANSI codeblock
+
+  -D, --no-discord
+          Don't wrap the output in a markdown-style codeblock. [default]
 
   -s, --strip-ansi
           Strip all ANSI escape sequences from the input before processing. [default]
@@ -34,6 +37,12 @@ Options:
 
   -C, --no-unwrap-codeblock
           Don't remove surrounding codeblock from the input. [default]
+
+  -u, --unindent
+          Strip any top-level indentation in the input prior to highlighting it
+
+  -U, --no-unindent
+          Keep indents as-is. [default]
 
   -l, --soft-limit <SOFT_LIMIT>
           Softly enforce a byte size limit.
