@@ -33,6 +33,7 @@
 
         typst-ansi-hl = craneLib.buildPackage (commonArgs // {
           inherit cargoArtifacts;
+          doCheck = true;
           meta.mainProgram = "typst-ansi-hl";
         });
       in
@@ -45,6 +46,10 @@
           };
 
           typst-ansi-hl_clippy = craneLib.cargoClippy (commonArgs // {
+            inherit cargoArtifacts;
+          });
+
+          typst-ansi-hl_test = craneLib.cargoTest (commonArgs // {
             inherit cargoArtifacts;
           });
         };
