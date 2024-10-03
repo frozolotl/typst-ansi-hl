@@ -150,10 +150,9 @@ fn unwrap_codeblock(input: &str) -> &str {
 fn dedent(input: &str) -> String {
     let shared_indent = input
         .lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| {
-            let nonspace = l.find(|c: char| !c.is_whitespace()).unwrap();
-            &l[..nonspace]
+        .filter_map(|line| {
+            let nonspace = line.find(|c: char| !c.is_whitespace())?;
+            Some(&line[..nonspace])
         })
         .min_by_key(|s| s.len() + s.matches('\t').count()) // Assume tabs are 2-wide
         .unwrap_or("");
