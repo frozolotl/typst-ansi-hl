@@ -28,15 +28,15 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
-ansi_colours = "1.2.2"
-clap = { version = "4.5.19", features = ["derive"] }
+ansi_colours = "1.2.3"
+clap = { version = "4.5.20", features = ["derive"] }
 color-eyre = "0.6.3"
 syntect = { version = "5.2.0", default-features = false, features = ["parsing", "regex-fancy"] }
 termcolor = "1.4.1"
 thiserror = "1.0.64"
 two-face = { version = "0.4.0", default-features = false, features = ["syntect-fancy"] }
 typst-ansi-hl = { path = "lib" }
-typst-syntax = "0.11.1"
+typst-syntax = "0.12.0"
 
 [dependencies]
 clap = { workspace = true }
