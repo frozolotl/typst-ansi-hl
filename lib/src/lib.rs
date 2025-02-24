@@ -272,8 +272,13 @@ impl Highlighter {
 
     fn tag_to_color(&self, hl_level: HighlightLevel, tag: Tag) -> ColorSpec {
         let mut color = ColorSpec::default();
+        if hl_level == HighlightLevel::Off {
+            return color;
+        }
+
         let l1 = hl_level >= HighlightLevel::L1;
         let l2 = hl_level >= HighlightLevel::L2;
+        let l3 = hl_level >= HighlightLevel::L3;
         let with_styles = hl_level >= HighlightLevel::WithStyles;
         match tag {
             Tag::Comment => {
@@ -283,25 +288,25 @@ impl Highlighter {
                     color.set_dimmed(true)
                 }
             }
-            Tag::Punctuation if l1 => color.set_fg(None),
+            Tag::Punctuation if l3 => color.set_fg(None),
             Tag::Escape => color.set_fg(Some(Color::Cyan)),
-            Tag::Strong if l1 => color.set_fg(Some(Color::Yellow)).set_bold(with_styles),
-            Tag::Emph if l1 => color.set_fg(Some(Color::Yellow)).set_italic(with_styles),
-            Tag::Link if l1 => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
-            Tag::Raw => color.set_fg(Some(Color::White)),
-            Tag::Label => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
-            Tag::Ref => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
-            Tag::Heading => color.set_fg(Some(Color::Cyan)).set_bold(with_styles),
-            Tag::ListMarker => color.set_fg(Some(Color::Cyan)),
-            Tag::ListTerm => color.set_fg(Some(Color::Cyan)),
-            Tag::MathDelimiter if l2 => color.set_fg(Some(Color::Cyan)),
-            Tag::MathOperator => color.set_fg(Some(Color::Cyan)),
+            Tag::Strong if l3 => color.set_fg(Some(Color::Yellow)).set_bold(with_styles),
+            Tag::Emph if l3 => color.set_fg(Some(Color::Yellow)).set_italic(with_styles),
+            Tag::Link if l3 => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
+            Tag::Raw if l2 => color.set_fg(Some(Color::White)),
+            Tag::Label if l1 => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
+            Tag::Ref if l1 => color.set_fg(Some(Color::Blue)).set_underline(with_styles),
+            Tag::Heading if l2 => color.set_fg(Some(Color::Cyan)).set_bold(with_styles),
+            Tag::ListMarker if l2 => color.set_fg(Some(Color::Cyan)),
+            Tag::ListTerm if l2 => color.set_fg(Some(Color::Cyan)),
+            Tag::MathDelimiter if l3 => color.set_fg(Some(Color::Cyan)),
+            Tag::MathOperator if l2 => color.set_fg(Some(Color::Cyan)),
             Tag::Keyword => color.set_fg(Some(Color::Magenta)),
-            Tag::Operator if l2 => color.set_fg(Some(Color::Cyan)),
-            Tag::Number => color.set_fg(Some(Color::Yellow)),
-            Tag::String => color.set_fg(Some(Color::Green)),
-            Tag::Function if l2 => color.set_fg(Some(Color::Blue)).set_italic(with_styles),
-            Tag::Interpolated if l2 => color.set_fg(Some(Color::White)),
+            Tag::Operator if l3 => color.set_fg(Some(Color::Cyan)),
+            Tag::Number if l1 => color.set_fg(Some(Color::Yellow)),
+            Tag::String if l1 => color.set_fg(Some(Color::Green)),
+            Tag::Function if l3 => color.set_fg(Some(Color::Blue)).set_italic(with_styles),
+            Tag::Interpolated if l3 => color.set_fg(Some(Color::White)),
             Tag::Error => color.set_fg(Some(Color::Red)),
             _ => &mut color,
         };
@@ -375,8 +380,10 @@ fn convert_rgb_to_ansi_color(r: u8, g: u8, b: u8, a: u8) -> Option<Color> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum HighlightLevel {
     Off,
+    L0,
     L1,
     L2,
+    L3,
     /// Highlight raw blocks.
     WithRaw,
     /// Use styles like bold, italic, underline.
@@ -388,9 +395,11 @@ impl HighlightLevel {
     fn restrict(self) -> HighlightLevel {
         match self {
             HighlightLevel::Off => HighlightLevel::Off,
-            HighlightLevel::L1 => HighlightLevel::Off,
+            HighlightLevel::L0 => HighlightLevel::Off,
+            HighlightLevel::L1 => HighlightLevel::L0,
             HighlightLevel::L2 => HighlightLevel::L1,
-            HighlightLevel::WithRaw => HighlightLevel::L2,
+            HighlightLevel::L3 => HighlightLevel::L2,
+            HighlightLevel::WithRaw => HighlightLevel::L3,
             HighlightLevel::WithStyles => HighlightLevel::WithRaw,
             HighlightLevel::All => HighlightLevel::WithStyles,
         }
